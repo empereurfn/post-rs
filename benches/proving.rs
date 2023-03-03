@@ -30,9 +30,8 @@ fn prover_bench<const N: usize>(c: &mut Criterion) {
         format!("nonces={N}/D=8/B=16/aes={}", prover.required_aeses()),
         |b| {
             b.iter(|| {
-                let reader = BatchingReader::new(DATA.as_slice(), 0, 128 * 1024);
                 let f = black_box(|_, _| false);
-                assert!(prover.prove(reader, f).is_ok());
+                assert!(prover.prove(DATA.as_slice(), 0, f).is_ok());
             });
         },
     );
@@ -61,9 +60,8 @@ fn var_d_prover_bench<const N: usize, const POS_SIZE: usize>(c: &mut Criterion) 
         ),
         |b| {
             b.iter(|| {
-                let reader = BatchingReader::new(DATA.as_slice(), 0, 128 * 1024);
                 let f = black_box(|_, _| false);
-                assert!(prover.prove(reader, f).is_ok());
+                assert!(prover.prove(DATA.as_slice(), 0, f).is_ok());
             });
         },
     );
@@ -85,9 +83,8 @@ fn var_d_prover_bench_v2<const N: usize, const POS_SIZE: usize>(c: &mut Criterio
         ),
         |b| {
             b.iter(|| {
-                let reader = BatchingReader::new(DATA.as_slice(), 0, 128 * 1024);
                 let f = black_box(|_, _| false);
-                assert!(prover.prove(reader, f).is_ok());
+                assert!(prover.prove(DATA.as_slice(), 0, f).is_ok());
             });
         },
     );
@@ -103,9 +100,8 @@ fn var_b_prover_bench<const N: usize, const B: usize>(c: &mut Criterion) {
         format!("nonces={N}/D=8/B={B}/aes={}", prover.required_aeses()),
         |b| {
             b.iter(|| {
-                let reader = BatchingReader::new(DATA.as_slice(), 0, 128 * 1024);
                 let f = black_box(|_, _| false);
-                assert!(prover.prove(reader, f).is_ok());
+                assert!(prover.prove(DATA.as_slice(), 0, f).is_ok());
             });
         },
     );
@@ -115,12 +111,8 @@ criterion_group!(
     name = benches;
     config = Criterion::default().with_profiler(PProfProfiler::new(1000, Output::Flamegraph(None)));
     targets=
-        var_d_prover_bench::<2, {256*GB}>, var_d_prover_bench::<20, {256*GB}>,
-        var_d_prover_bench::<2, {10*TB}>, var_d_prover_bench::<20, {10*TB}>,
-        var_d_prover_bench::<2, {PB}>, var_d_prover_bench::<20, {PB}>,
-        var_d_prover_bench::<200, {256*GB}>, var_d_prover_bench::<200, {10*TB}>,
-
-        var_d_prover_bench_v2::<20, {10*TB}>, var_d_prover_bench_v2::<200, {10*TB}>,
+        var_d_prover_bench::<2, {256*GB}>, var_d_prover_bench::<20, {256*GB}>, var_d_prover_bench::<200, {256*GB}>,
+        var_d_prover_bench_v2::<2, {256*GB}>, var_d_prover_bench_v2::<20, {256*GB}>, var_d_prover_bench_v2::<200, {256*GB}>,
 
         prover_bench::<2>, prover_bench::<20>, prover_bench::<200>,
 
