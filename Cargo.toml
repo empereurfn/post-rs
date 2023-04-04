@@ -33,6 +33,7 @@ pprof = { version = "0.11.1", features = ["flamegraph", "criterion"] }
 tempfile = "3.3.0"
 rand = "0.8.5"
 proptest = "1.1.0"
+csv = "1.2.1"
 
 [[bench]]
 name = "proving"
@@ -51,3 +52,6 @@ inherits = "release"
 strip = true
 lto = true
 rpath = true
+
+[profile.dev]
+opt-level = 3
