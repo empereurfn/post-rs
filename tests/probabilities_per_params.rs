@@ -5,7 +5,7 @@ use post::{
     prove::{ConstDProver, Prover, ProvingParams},
     ScryptParams,
 };
-use rand::{thread_rng, RngCore};
+use rand::{rngs::mock::StepRng, RngCore};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
 struct ParamSet {
@@ -22,21 +22,22 @@ fn try_set(data: &[u8], set: ParamSet, num_labels: usize, target_proofs: usize) 
     );
 
     let params = ProvingParams {
-        pow_scrypt: ScryptParams::new(1, 0, 0),
+        pow_scrypt: ScryptParams::new(0, 0, 0),
         difficulty: proving_difficulty(num_labels as u64, set.k1).unwrap(),
         k2_pow_difficulty: u64::MAX,
         k3_pow_difficulty: u64::MAX,
     };
 
     let find_proof = |ch| -> u32 {
-        let mut indicies = HashMap::<u32, Vec<u64>>::new();
+        let mut counts = [
+            Vec::<u64>::with_capacity(set.k2 as usize),
+            Vec::<u64>::with_capacity(set.k2 as usize),
+        ];
         for nonce in (0..).step_by(2) {
-            indicies.clear();
-
             let prover = ConstDProver::new(&ch, nonce..nonce + 2, params.clone());
 
             let result = prover.prove(data, 0, |nonce, index| {
-                let vec = indicies.entry(nonce).or_default();
+                let vec = &mut counts[(nonce % 2) as usize];
                 vec.push(index);
                 if vec.len() >= set.k2 as usize {
                     return Some(std::mem::take(vec));
@@ -48,6 +49,8 @@ fn try_set(data: &[u8], set: ParamSet, num_labels: usize, target_proofs: usize) 
                 print!("*");
                 return nonce;
             }
+            counts[0].clear();
+            counts[1].clear();
         }
         unreachable!()
     };
@@ -88,83 +91,18 @@ fn try_set(data: &[u8], set: ParamSet, num_labels: usize, target_proofs: usize) 
     wtr.flush().unwrap();
 }
 
-// fn probability_to_find_proof_with_n_nonces(data: &[u8], set: ParamSet, num_labels: usize, nonces: usize) {
-//     println!(
-//         "Trying set: k1={}, k2={}, held data: {}%",
-//         set.k1,
-//         set.k2,
-//         data.len() / 16 * 100 / num_labels,
-//     );
-
-//     let params = ProvingParams {
-//         pow_scrypt: ScryptParams::new(1, 0, 0),
-//         difficulty: proving_difficulty(num_labels as u64, set.k1).unwrap(),
-//         k2_pow_difficulty: u64::MAX,
-//         k3_pow_difficulty: u64::MAX,
-//     };
-
-//     let find_proof = |ch| -> u32 {
-//         let mut indicies = HashMap::<u32, Vec<u64>>::new();
-//         for nonce in (0..).step_by(2) {
-//             indicies.clear();
-
-//             let prover = ConstDProver::new(&ch, nonce..nonce + 2, params.clone());
-
-//             let result = prover.prove(data, 0, |nonce, index| {
-//                 let vec = indicies.entry(nonce).or_default();
-//                 vec.push(index);
-//                 if vec.len() >= set.k2 as usize {
-//                     return Some(std::mem::take(vec));
-//                 }
-//                 None
-//             });
-
-//             if let Some((nonce, _)) = result {
-//                 print!("*");
-//                 return nonce;
-//             }
-//         }
-//         unreachable!()
-//     };
-
-//     let nonces = Mutex::new(BTreeMap::<u32, usize>::new());
-//     (0u64..target_proofs as u64).into_par_iter().for_each(|i| {
-//         let challenge = i.to_le_bytes().repeat(4).as_slice().try_into().unwrap();
-//         let nonce = find_proof(challenge);
-//         *nonces.lock().unwrap().entry(nonce).or_default() += 1;
-//     });
-
-//     let mut wtr = csv::WriterBuilder::new()
-//         .delimiter(b';')
-//         .from_path(format!(
-//             "./nonces-k1={}-k2={}-{}%.csv",
-//             set.k1,
-//             set.k2,
-//             data.len() / 16 * 100 / num_labels
-//         ))
-//         .unwrap();
-//     wtr.write_record(["nonce", "proofs count"]).unwrap();
-
-//     for (nonce, count) in nonces.lock().unwrap().iter() {
-//         wtr.write_record(&[nonce.to_string(), count.to_string()])
-//             .unwrap();
-//     }
-
-//     wtr.flush().unwrap();
-// }
-
 #[test]
 fn probabilities_to_find_prove_given_nonces() {
     let num_labels = 1e6 as usize;
     let mut data = vec![0u8; num_labels * 16];
-    thread_rng().fill_bytes(&mut data);
+    StepRng::new(0, 1).fill_bytes(&mut data);
 
     for test in [
-        (
-            ParamSet { k1: 196, k2: 200 },
-            &data[..data.len() * 100 / 100],
-            10000,
-        ),
+        // (
+        //     ParamSet { k1: 196, k2: 200 },
+        //     &data[..data.len() * 100 / 100],
+        //     10000,
+        // ),
         // (
         //     ParamSet { k1: 279, k2: 300 },
         //     &data[..data.len() * 100 / 100],
@@ -193,13 +131,19 @@ fn probabilities_to_find_prove_given_nonces() {
         // (
         //     ParamSet { k1: 118, k2: 120 },
         //     &data[..data.len() * 70 / 100],
-        //     200,
+        //     10,
         // ),
         // (
         //     ParamSet { k1: 279, k2: 300 },
         //     &data[..data.len() * 85 / 100],
         //     100,
         // ),
+        (
+            ParamSet { k1: 144, k2: 146 },
+            &data[..data.len() * 70 / 100],
+            200,
+        ),
+        (ParamSet { k1: 144, k2: 146 }, &data, 10000),
     ] {
         try_set(test.1, test.0, num_labels, test.2);
     }
