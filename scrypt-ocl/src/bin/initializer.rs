@@ -13,7 +13,7 @@ fn main() {
         );
     }
 
-    let label_count = 50000;
+    let label_count = 1 << 18; // 128k labels
 
     let node_id = general_purpose::STANDARD
         .decode("hBGTHs44tav7YR87sRVafuzZwObCZnK1Z/exYpxwqSQ=")

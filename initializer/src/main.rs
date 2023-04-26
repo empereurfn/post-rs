@@ -4,7 +4,7 @@ use base64::{engine::general_purpose, Engine};
 use post::ScryptParams;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let label_count = 50000;
+    let label_count = 1 << 18;
 
     let node_id = general_purpose::STANDARD
         .decode("hBGTHs44tav7YR87sRVafuzZwObCZnK1Z/exYpxwqSQ=")
