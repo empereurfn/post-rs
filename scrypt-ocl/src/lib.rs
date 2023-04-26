@@ -87,11 +87,12 @@ impl Scrypter {
             _ => panic!("Device::local_work_size: Unexpected 'DeviceInfoResult' variant."),
         }? as usize;
 
-        let global_work_size = max_wg_size * 2;
-        let local_work_size = 128;
+        let global_work_size = max_wg_size * 256;
+        let local_work_size = ((max_wg_size / max_compute_units as usize) & !1) * 128;
+
         eprintln!("max_compute_units: {max_compute_units}, max_wg_size: {max_wg_size}, global_work_size: {global_work_size}, local_work_size: {local_work_size}");
 
-        pro_que.set_dims(SpatialDims::One(global_work_size));
+        pro_que.set_dims(SpatialDims::One(1));
 
         let commitment: Vec<u32> = commitment
             .chunks(4)
@@ -110,7 +111,7 @@ impl Scrypter {
             .queue(pro_que.queue().clone())
             .build()?;
 
-        let pad_size = global_work_size * 4 * 8 * (n / lookup_gap);
+        let pad_size = max_wg_size * 4 * 8 * (n / lookup_gap);
 
         let padcache = Buffer::<u32>::builder()
             .len(pad_size)
