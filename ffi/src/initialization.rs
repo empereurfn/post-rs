@@ -148,6 +148,7 @@ pub extern "C" fn initialize(
     if !out_nonce.is_null() {
         if let Some(nonce) = vrf_nonce {
             unsafe { *out_nonce = nonce.index };
+            initializer.vrf_difficulty = Some(nonce.label);
         } else {
             return InitializeResult::InitializeOkNonceNotFound;
         }
@@ -322,6 +323,64 @@ mod tests {
         );
         assert_eq!(InitializeResult::InitializeOk, result);
         assert_ne!(0xCAFEDEAD, nonce);
+    }
+
+    #[test]
+    fn initialization_finds_smallest_nonce() {
+        let indices = 0..=2000;
+        let vrf_difficulty = [0xFF; 32];
+
+        let initializer = super::new_initializer(
+            CPU_PROVIDER_ID,
+            32,
+            [0u8; 32].as_ptr(),
+            vrf_difficulty.as_ptr(),
+        );
+
+        let mut labels = vec![0u8; (*indices.end() as usize + 1) * 16];
+        let mut nonce_found_in_batches = 0xCAFEDEADCAFEDEAD;
+
+        // Initialize first half
+        let result = super::initialize(
+            initializer,
+            *indices.start(),
+            *indices.end() / 2,
+            labels.as_mut_ptr(),
+            &mut nonce_found_in_batches,
+        );
+        assert_eq!(InitializeResult::InitializeOk, result);
+
+        // Initialize second half
+        let result = super::initialize(
+            initializer,
+            *indices.end() / 2 + 1,
+            *indices.end(),
+            labels.as_mut_ptr(),
+            &mut nonce_found_in_batches,
+        );
+        assert_eq!(InitializeResult::InitializeOk, result);
+        super::free_initializer(initializer);
+
+        // Initialize all in single batch. Should get the same nonce;
+        let initializer = super::new_initializer(
+            CPU_PROVIDER_ID,
+            32,
+            [0u8; 32].as_ptr(),
+            vrf_difficulty.as_ptr(),
+        );
+        let mut nonce = 0xCAFEDEADCAFEDEAD;
+        let result = super::initialize(
+            initializer,
+            *indices.start(),
+            *indices.end(),
+            labels.as_mut_ptr(),
+            &mut nonce,
+        );
+        assert_eq!(InitializeResult::InitializeOk, result);
+
+        assert_eq!(nonce, nonce_found_in_batches);
+
+        super::free_initializer(initializer);
     }
 
     #[test]
