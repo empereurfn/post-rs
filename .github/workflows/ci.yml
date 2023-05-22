@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
 
 name: CI
 
@@ -14,7 +16,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check
+      - run: cargo check --workspace --all-features
 
   test:
     name: Test Suite
@@ -22,10 +24,17 @@ jobs:
       - check
     runs-on: ubuntu-latest
     steps:
+      - name: Install dependencies for testing openCL
+        run: sudo apt-get install -y libpocl2 mesa-opencl-icd ocl-icd-opencl-dev
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --all-features
+      - name: Test scrypt-ocl crate
+        run: cargo test -p scrypt-ocl --all-features -- --test-threads=1
+      - name: Test ffi crate
+        run: cargo test -p post-cbindings --all-features -- --test-threads=1
+
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
@@ -49,7 +58,7 @@ jobs:
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          args: --all-features --workspace
 
   coverage:
     runs-on: ubuntu-latest
@@ -85,6 +94,7 @@ jobs:
           - os: ubuntu-20.04
             dylib: libpost.so
             staticlib: libpost.a
+            artifact-name: linux
 
           - os: [self-hosted, linux, arm64]
             dylib: libpost.so
@@ -101,24 +111,93 @@ jobs:
           - os: macos-latest
             dylib: libpost.dylib
             staticlib: libpost.a
+            artifact-name: macos
 
           - os: windows-latest
             dylib: post.dll
             staticlib: post.lib
+            artifact-name: windows
     steps:
+      - if: matrix.os == 'ubuntu-20.04'
+        run: sudo apt-get install -y libpocl2 mesa-opencl-icd ocl-icd-opencl-dev
+        name: Install opencl
+      - if: matrix.os == 'windows-latest'
+        name: Install opencl
+        run: vcpkg install opencl
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ join( matrix.os, '-' ) }}
-      - run: cd ffi && cargo build --profile release-clib
+
+      - if: matrix.os == 'windows-latest'
+        name: Download OpenCL.lib
+        run: |
+          pwd
+          choco install -y wget unzip
+          wget https://github.com/KhronosGroup/OpenCL-SDK/releases/download/v2023.04.17/OpenCL-SDK-v2023.04.17-Win-x64.zip
+          unzip -j OpenCL-SDK-v2023.04.17-Win-x64.zip OpenCL-SDK-v2023.04.17-Win-x64/lib/OpenCL.lib
+
+      - name: Version suffix (for release only)
+        id: version
+        run: echo "suffix=${{ github.ref_type == 'tag' && '-' || ''}}${{ github.ref_type == 'tag' && github.ref || ''}}" >> $GITHUB_OUTPUT
+      - name: Build clib
+        run: cd ffi && cargo build --profile release-clib
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
       - name: Archive production artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: libpost-${{ matrix.artifact-name || matrix.os }}
+          name: libpost-${{ matrix.artifact-name }}${{ steps.version.output.suffix }}
           path: |
             ffi/prover.h
             target/release-clib/${{ matrix.dylib }}
             target/release-clib/${{ matrix.staticlib }}
+          if-no-files-found: error
+
+      - name: Build profiler tool
+        run: cd profiler && cargo build --release
+      - name: Archive profiler artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: profiler-${{ matrix.artifact-name }}${{ steps.version.output.suffix }}
+          path: |
+            target/release/profiler${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ./artifacts
+      - name: List artifacts
+        run: ls -R ./artifacts
+      - name: Create a draft release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: true
+          prerelease: false
+      - name: Pack artifacts
+        run: >
+          mkdir ./assets;
+          for dir in ./artifacts/*/; do
+            zip -o -j -r "./assets/$(basename "$dir")-$TAG.zip" "$dir";
+          done
+        env:
+          TAG: ${{ github.ref_name }}
+      - name: Upload Release Assets
+        run: gh release upload $TAG ./assets/*.zip
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}

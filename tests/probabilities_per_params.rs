@@ -1,8 +1,8 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use post::{
     difficulty::proving_difficulty,
-    prove::{ConstDProver, Prover, ProvingParams},
+    prove::{Prover, Prover8_56, ProvingParams},
     ScryptParams,
 };
 use rand::{rngs::mock::StepRng, RngCore};
@@ -23,21 +23,17 @@ fn try_set(data: &[u8], set: ParamSet, num_labels: usize, target_proofs: usize) 
 
     let params = ProvingParams {
         pow_scrypt: ScryptParams::new(0, 0, 0),
-        difficulty: proving_difficulty(num_labels as u64, set.k1).unwrap(),
+        difficulty: proving_difficulty(set.k1, num_labels as u64).unwrap(),
         k2_pow_difficulty: u64::MAX,
-        k3_pow_difficulty: u64::MAX,
     };
 
     let find_proof = |ch| -> u32 {
-        let mut counts = [
-            Vec::<u64>::with_capacity(set.k2 as usize),
-            Vec::<u64>::with_capacity(set.k2 as usize),
-        ];
-        for nonce in (0..).step_by(2) {
-            let prover = ConstDProver::new(&ch, nonce..nonce + 2, params.clone());
+        let mut counts: [Vec<u64>; 16] = Default::default();
+        for nonce in (0..).step_by(16) {
+            let prover = Prover8_56::new(&ch, nonce..nonce + 16, params.clone()).unwrap();
 
             let result = prover.prove(data, 0, |nonce, index| {
-                let vec = &mut counts[(nonce % 2) as usize];
+                let vec = &mut counts[(nonce % 16) as usize];
                 vec.push(index);
                 if vec.len() >= set.k2 as usize {
                     return Some(std::mem::take(vec));
@@ -49,8 +45,9 @@ fn try_set(data: &[u8], set: ParamSet, num_labels: usize, target_proofs: usize) 
                 print!("*");
                 return nonce;
             }
-            counts[0].clear();
-            counts[1].clear();
+            for vec in counts.iter_mut() {
+                vec.clear();
+            }
         }
         unreachable!()
     };

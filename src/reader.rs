@@ -8,7 +8,7 @@ use itertools::Itertools;
 use regex::Regex;
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Batch {
+pub struct Batch {
     pub data: Vec<u8>,
     pub pos: u64,
 }
@@ -68,7 +68,7 @@ impl<T: Read> Iterator for BatchingReader<T> {
     }
 }
 
-fn pos_files(datadir: &Path) -> impl Iterator<Item = DirEntry> {
+pub(crate) fn pos_files(datadir: &Path) -> impl Iterator<Item = DirEntry> {
     let file_re = Regex::new(r"postdata_(\d+)\.bin").unwrap();
     datadir
         .read_dir()
@@ -99,7 +99,7 @@ pub(crate) fn read_data(
 
         // If there are more files, check if the size of the file is correct
         if files.peek().is_some() && pos_file_size != file_size {
-            eprintln!(
+            log::warn!(
                 "invalid POS file, expected size: {file_size} vs actual size: {pos_file_size}"
             );
         }
@@ -107,6 +107,14 @@ pub(crate) fn read_data(
     }
 
     readers.into_iter().flatten()
+}
+
+pub fn read_from<R: Read>(
+    reader: R,
+    batch_size: usize,
+    max_size: u64,
+) -> impl Iterator<Item = Batch> {
+    BatchingReader::new(reader, 0, batch_size, max_size)
 }
 
 #[cfg(test)]
