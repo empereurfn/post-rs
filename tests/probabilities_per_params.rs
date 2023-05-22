@@ -95,52 +95,12 @@ fn probabilities_to_find_prove_given_nonces() {
     StepRng::new(0, 1).fill_bytes(&mut data);
 
     for test in [
-        // (
-        //     ParamSet { k1: 196, k2: 200 },
-        //     &data[..data.len() * 100 / 100],
-        //     10000,
-        // ),
-        // (
-        //     ParamSet { k1: 279, k2: 300 },
-        //     &data[..data.len() * 100 / 100],
-        //     10000,
-        // ),
-        // (
-        //     ParamSet { k1: 300, k2: 300 },
-        //     &data[..data.len() * 100 / 100],
-        //     10000,
-        // ),
-        // (
-        //     ParamSet { k1: 118, k2: 120 },
-        //     &data[..data.len() * 100 / 100],
-        //     10000,
-        // ),
-        // (
-        //     ParamSet { k1: 196, k2: 200 },
-        //     &data[..data.len() * 80 / 100],
-        //     1000,
-        // ),
-        // (
-        //     ParamSet { k1: 300, k2: 300 },
-        //     &data[..data.len() * 80 / 100],
-        //     1000,
-        // ),
-        // (
-        //     ParamSet { k1: 118, k2: 120 },
-        //     &data[..data.len() * 70 / 100],
-        //     10,
-        // ),
-        // (
-        //     ParamSet { k1: 279, k2: 300 },
-        //     &data[..data.len() * 85 / 100],
-        //     100,
-        // ),
+        // (ParamSet { k1: 26, k2: 37 }, data.as_slice(), 10000),
         (
-            ParamSet { k1: 144, k2: 146 },
+            ParamSet { k1: 26, k2: 37 },
             &data[..data.len() * 70 / 100],
-            200,
+            1000,
         ),
-        (ParamSet { k1: 144, k2: 146 }, &data, 10000),
     ] {
         try_set(test.1, test.0, num_labels, test.2);
     }
