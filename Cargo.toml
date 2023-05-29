@@ -48,6 +48,10 @@ harness = false
 name = "verifying"
 harness = false
 
+[[bench]]
+name = "scrypting"
+harness = false
+
 [profile.release-clib]
 inherits = "release"
 strip = true
