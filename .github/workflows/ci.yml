@@ -37,7 +37,7 @@ jobs:
             toolchain: nightly # required for AES (https://docs.rs/aes/0.8.2/aes/#armv8-intrinsics-nightly-only)
           - os: macos-latest
             toolchain: stable
-          - os: windows-latest
+          - os: windows-2019
             toolchain: stable
 
     steps:
@@ -48,14 +48,14 @@ jobs:
       - if: matrix.os == 'ubuntu-20.04'
         run: sudo apt-get install -y libpocl2 mesa-opencl-icd ocl-icd-opencl-dev
         name: Install dependencies for testing openCL
-      - if: matrix.os == 'windows-latest'
+      - if: matrix.os == 'windows-2019'
         name: Install dependencies for testing openCL
         run: |
           choco install -y wget unzip
           wget https://github.com/KhronosGroup/OpenCL-SDK/releases/download/v2023.04.17/OpenCL-SDK-v2023.04.17-Win-x64.zip
           unzip -j OpenCL-SDK-v2023.04.17-Win-x64.zip OpenCL-SDK-v2023.04.17-Win-x64/lib/OpenCL.lib
           vcpkg install opencl
-      - uses: Swatinem/rust-cache@v2
+      # - uses: Swatinem/rust-cache@v2
 
       - name: Test post crate
         run: cargo test --all-features
