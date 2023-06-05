@@ -24,6 +24,7 @@ jobs:
       - check
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-20.04
@@ -60,6 +61,7 @@ jobs:
         run: cargo test --all-features
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
+          RANDOMX_RS_CMAKE_OSX_SYSROOT: "/Library/Developer/CommandLineTools/SDKs/MacOSX12.3.sdk"
 
       - name: Test scrypt-ocl crate
         run: cargo test -p scrypt-ocl --all-features -- --test-threads=1
