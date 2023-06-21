@@ -89,8 +89,10 @@ impl PoW {
         let hash = vm.calculate_hash(pow_input.as_slice())?;
 
         if hash.as_slice() >= difficulty {
+            log::info!("RandomX pow verification failed for nonce {pow}: hash {hash:X?} >= difficulty {difficulty:X?}");
             return Err(Error::InvalidPoW);
         }
+        log::info!("RandomX pow verification succeeded for nonce {pow}");
         Ok(())
     }
 }
