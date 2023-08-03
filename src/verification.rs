@@ -39,7 +39,7 @@ use std::cmp::Ordering;
 
 use cipher::BlockEncrypt;
 use itertools::Itertools;
-use primitive_types::U256;
+
 use scrypt_jane::scrypt::ScryptParams;
 
 use crate::{
@@ -49,7 +49,7 @@ use crate::{
     difficulty::proving_difficulty,
     initialize::{calc_commitment, generate_label},
     metadata::ProofMetadata,
-    pow::PowVerifier,
+    pow::{self, PowVerifier},
     prove::{Proof, Prover8_56},
     random_values_gen::RandomValuesIterator,
 };
@@ -68,18 +68,11 @@ pub struct VerifyingParams {
 impl VerifyingParams {
     pub fn new(metadata: &ProofMetadata, cfg: &Config) -> eyre::Result<Self> {
         let num_labels = metadata.num_units as u64 * metadata.labels_per_unit;
-
-        // Scale PoW difficulty by number of units
-        eyre::ensure!(metadata.num_units > 0, "num_units must be > 0");
-        let difficulty_scaled = U256::from_big_endian(&cfg.pow_difficulty) / metadata.num_units;
-        let mut pow_difficulty = [0u8; 32];
-        difficulty_scaled.to_big_endian(&mut pow_difficulty);
-
         Ok(Self {
             difficulty: proving_difficulty(cfg.k1, num_labels)?,
             k2: cfg.k2,
             k3: cfg.k3,
-            pow_difficulty,
+            pow_difficulty: pow::scale_difficulty(&cfg.pow_difficulty, metadata.num_units)?,
             scrypt: cfg.scrypt,
         })
     }

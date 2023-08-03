@@ -11,7 +11,7 @@
 use aes::cipher::block_padding::NoPadding;
 use aes::cipher::BlockEncrypt;
 use eyre::Context;
-use primitive_types::U256;
+
 use randomx_rs::RandomXFlag;
 use rayon::prelude::{ParallelBridge, ParallelIterator};
 use std::{borrow::Cow, collections::HashMap, ops::Range, path::Path, sync::Mutex};
@@ -65,12 +65,9 @@ pub struct ProvingParams {
 impl ProvingParams {
     pub fn new(metadata: &PostMetadata, cfg: &Config) -> eyre::Result<Self> {
         let num_labels = metadata.num_units as u64 * metadata.labels_per_unit;
-        let mut pow_difficulty = [0u8; 32];
-        let difficulty_scaled = U256::from_big_endian(&cfg.pow_difficulty) / metadata.num_units;
-        difficulty_scaled.to_big_endian(&mut pow_difficulty);
         Ok(Self {
             difficulty: proving_difficulty(cfg.k1, num_labels)?,
-            pow_difficulty,
+            pow_difficulty: pow::scale_difficulty(&cfg.pow_difficulty, metadata.num_units)?,
         })
     }
 }
