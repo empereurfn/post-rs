@@ -181,7 +181,7 @@ impl Scrypter {
             kernel.wg_info(device, KernelWorkGroupInfo::PreferredWorkGroupSizeMultiple)?,
             KernelWorkGroupInfoResult::PreferredWorkGroupSizeMultiple
         );
-        let kernel_wg_size = kernel.wg_info(device, KernelWorkGroupInfo::WorkGroupSize)?;
+        let kernel_wg_size = 2*kernel.wg_info(device, KernelWorkGroupInfo::WorkGroupSize)?;
 
         log::info!("preferred_wg_size_multiple: {preferred_wg_size_mult}, kernel_wg_size: {kernel_wg_size}");
 
